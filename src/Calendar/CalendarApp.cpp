@@ -1,0 +1,124 @@
+#include "CalendarApp.h"
+#include "../Ap_29demo.h" // 底图
+#include "../FontDriver/HanZiDriver.h" // 底图
+
+// 时区配置
+#define GMT_OFFSET_SEC 8 * 3600 
+#define DAYLIGHT_OFFSET_SEC 0
+// 定义画点函数（给 HanziDriver 用的）
+static EPD_Driver* _global_screen_ptr = nullptr;
+void myAppDrawPixel(int16_t x, int16_t y,uint16_t color) {
+    if (_global_screen_ptr) {
+        // 这里调用屏幕驱动画一个黑点
+        _global_screen_ptr->drawPixel(x, y, color);
+    }
+}
+
+// 实例化驱动对象
+HanziDriver myFont(myAppDrawPixel);
+// ==========================================
+
+
+// 构造函数：接收驱动对象
+CalendarApp::CalendarApp(EPD_Driver &drv) : screen(drv) {
+    // 3. 在构造时，把屏幕对象的地址赋给全局指针 <--- 新增
+    _global_screen_ptr = &drv;
+}
+
+void CalendarApp::begin() {
+    // 这里只初始化业务相关的，比如绑定 U8g2
+    // 屏幕硬件初始化已经在 driver.begin() 做过了，或者在这里调也可以
+    u8g2.begin(screen); // 把屏幕驱动交给 U8g2
+}
+
+void CalendarApp::connectWiFi(const char* ssid, const char* password) {
+    // ... (保留原有的 WiFi 连接代码) ...
+    // 比如 Serial.printf("Connecting to %s...", ssid); WiFi.begin...
+}
+
+bool CalendarApp::syncTime() {
+    // ... (保留原有的 NTP 代码) ...
+    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, "ntp.aliyun.com", "pool.ntp.org");
+    struct tm timeinfo;
+    return getLocalTime(&timeinfo, 10000);
+}
+
+// 🎨 纯粹的 UI 绘制逻辑
+void CalendarApp::drawUI(struct tm *now) {
+    // 1. 贴底图
+    if (screen.getBuffer()) {
+        memcpy(screen.getBuffer(), gImage_1, 800 * 480 / 4);
+    }
+
+    // 2. 用 U8g2 写字 (针对 screen 对象操作)
+    u8g2.setForegroundColor(EPD_WHITE); // 假设 3 是黑色
+    u8g2.setBackgroundColor(EPD_RED); // 白色
+    
+    // --- 天气 ---
+    u8g2.setFont(u8g2_font_logisoso30_tr);
+    //     u8g2.setForegroundColor(EPD_WHITE); // 假设 3 是黑色
+    // u8g2.setBackgroundColor(EPD_RED); // 白色rsor(90, 250);
+    u8g2.setCursor(105,110);
+    u8g2.print("26");
+
+    
+    // --- 日期 ---
+    u8g2.setFont(u8g2_font_logisoso92_tn);
+    u8g2.setCursor(90, 250);
+    u8g2.print(now->tm_mday);
+
+    // u8g2.setCu
+    u8g2.setFont(u8g2_font_logisoso46_tn);
+    //     u8g2.setForegroundColor(EPD_WHITE); // 假设 3 是黑色
+    // u8g2.setBackgroundColor(EPD_RED); // 白色rsor(90, 250);
+    u8g2.setCursor(150,290);
+    u8g2.print("1234567890");
+
+    u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+    //     u8g2.setForegroundColor(EPD_WHITE); // 假设 3 是黑色
+    // u8g2.setBackgroundColor(EPD_RED); // 白色rsor(90, 250);
+    u8g2.setCursor(90,334);
+    u8g2.print("冬月十一");
+        u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+    //     u8g2.setForegroundColor(EPD_WHITE); // 假设 3 是黑色
+    // u8g2.setBackgroundColor(EPD_RED); // 白色rsor(90, 250);
+    u8g2.setCursor(70,395);
+    u8g2.print("祭祀 祈福 纳财");
+
+    
+    myFont.drawText(90, 302, "星期五",EPD_WHITE);
+    // --- 时间 ---
+    // char timeStr[10];
+    // sprintf(timeStr, "%02d:%02d", now->tm_hour, now->tm_min);
+    // u8g2.setFont(u8g2_font_helvB24_tf);
+    // u8g2.setCursor(400, 220);
+    // u8g2.print(timeStr);
+    
+    // ... 其他绘制代码 ...
+}
+
+bool CalendarApp::run(const char* ssid, const char* password) {
+    // 1. 联网对时
+    connectWiFi(ssid, password);
+    syncTime();
+    
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        // 获取失败也没事，给个默认值防止崩溃
+        timeinfo.tm_year = 2025 - 1900;
+        timeinfo.tm_mday = 1;
+    }
+    
+    WiFi.disconnect(true); // 断网省电
+
+    // 2. 唤醒屏幕硬件
+    screen.begin(); 
+
+    // 3. 绘制内容到显存
+    drawUI(&timeinfo);
+
+    // 4. 刷屏
+    screen.display();
+
+    return true;
+}

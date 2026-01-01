@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32/Arduino 智能字库生成器 V3 (带索引表)</title>
+    <style>
+        /* 保持 V2.1 的美观样式，无需大幅修改，重点在 JS 逻辑 */
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f6f9; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; display: flex; gap: 25px; align-items: flex-start; }
+        .panel { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        .left-panel { flex: 1; min-width: 320px; }
+        .right-panel { flex: 1.5; display: flex; flex-direction: column; gap: 25px; }
+        h2 { margin-top: 0; font-size: 1.3rem; border-bottom: 3px solid #3498db; padding-bottom: 12px; margin-bottom: 25px; }
+        .control-group { margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
+        textarea#inputText { width: 100%; height: 100px; padding: 10px; border: 2px solid #eee; border-radius: 8px; font-size: 18px; }
+        
+        /* 大预览 Canvas 样式 */
+        canvas#canvas {
+            width: 360px; height: 360px;
+            image-rendering: pixelated;
+            border: 3px solid #ddd; background: white;
+            background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%, #f0f0f0), linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%, #f0f0f0);
+            background-size: 32px 32px; background-position: 0 0, 16px 16px;
+            margin: 10px auto; display: block;
+        }
+
+        textarea#outputCode { width: 100%; height: 500px; font-family: 'Consolas', monospace; font-size: 13px; background: #2d3436; color: #a8bac5; padding: 15px; border-radius: 8px; border: none; }
+        .btn { background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; margin-bottom: 10px;}
+        .btn:hover { background: #2980b9; }
+        .value-tag { background: #eef2f7; color: #3498db; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel left-panel">
+        <h2>1. 参数设置</h2>
+        <label>输入需要显示的文字 (自动去重):</label>
+        <textarea id="inputText">你好世界</textarea>
+
+        <div class="control-group">
+            <label>画布尺寸 (宽x高)</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="canvasW" value="32" style="width:50px"> x 
+                <input type="number" id="canvasH" value="32" style="width:50px">
+            </div>
+        </div>
+
+        <div class="control-group"><label>字体</label><select id="fontFamily"><option value="SimHei">黑体</option><option value="SimSun">宋体</option><option value="KaiTi">楷体</option><option value="Arial">Arial</option></select></div>
+        <div class="control-group"><label>字号: <span id="v_size" class="value-tag">28</span></label><input type="range" id="fontSize" min="8" max="128" value="28"></div>
+        <div class="control-group"><label>粗细: <span id="v_weight" class="value-tag">400</span></label><input type="range" id="fontWeight" min="100" max="900" step="100" value="400"></div>
+        <div class="control-group"><label>X 偏移: <span id="v_x" class="value-tag">0</span></label><input type="range" id="offsetX" min="-50" max="50" value="0"></div>
+        <div class="control-group"><label>Y 偏移: <span id="v_y" class="value-tag">4</span></label><input type="range" id="offsetY" min="-50" max="50" value="4"></div>
+        <div class="control-group"><label>阈值: <span id="v_thresh" class="value-tag">128</span></label><input type="range" id="threshold" min="1" max="255" value="128"></div>
+
+        <button class="btn" onclick="generateAll()">生成代码 & 索引表</button>
+    </div>
+
+    <div class="right-panel">
+        <div class="panel" style="text-align:center;">
+            <h2>2. 效果预览</h2>
+            <canvas id="canvas"></canvas>
+            <div>当前生成尺寸: <span id="realSize">32x32</span></div>
+        </div>
+        <div class="panel" style="flex:1;">
+            <h2>3. 代码输出 (直接复制到 .h 文件)</h2>
+            <textarea id="outputCode" readonly></textarea>
+            <button class="btn" style="background:#2ecc71; margin-top:10px;" onclick="copyCode()">复制全部代码</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    // UI mapping
+    const els = {
+        text: document.getElementById('inputText'), w: document.getElementById('canvasW'), h: document.getElementById('canvasH'),
+        font: document.getElementById('fontFamily'), size: document.getElementById('fontSize'), weight: document.getElementById('fontWeight'),
+        x: document.getElementById('offsetX'), y: document.getElementById('offsetY'), thresh: document.getElementById('threshold'),
+        output: document.getElementById('outputCode'),
+        v_size: document.getElementById('v_size'), v_weight: document.getElementById('v_weight'), 
+        v_x: document.getElementById('v_x'), v_y: document.getElementById('v_y'), v_thresh: document.getElementById('v_thresh')
+    };
+
+    function updateUI() {
+        els.v_size.innerText = els.size.value; els.v_weight.innerText = els.weight.value;
+        els.v_x.innerText = els.x.value; els.v_y.innerText = els.y.value; els.v_thresh.innerText = els.thresh.value;
+        document.getElementById('realSize').innerText = `${els.w.value}x${els.h.value}`;
+        
+        // Resize canvas internally
+        canvas.width = parseInt(els.w.value);
+        canvas.height = parseInt(els.h.value);
+        
+        // Preview first char
+        if(els.text.value.length > 0) processChar(els.text.value[0], true);
+    }
+
+    // Bind events
+    Object.values(els).forEach(el => {
+        if(el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+            el.addEventListener('input', () => { updateUI(); if(el.type !== 'text' && el.tagName !== 'TEXTAREA') generateAll(); });
+        }
+    });
+
+    function processChar(char, isPreview) {
+        const W = parseInt(els.w.value);
+        const H = parseInt(els.h.value);
+        
+        ctx.fillStyle = "white"; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "black";
+        ctx.font = `${els.weight.value} ${els.size.value}px ${els.font.value}`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(char, (W/2) + parseInt(els.x.value), (H/2) + parseInt(els.y.value));
+
+        if (isPreview) return null;
+
+        const data = ctx.getImageData(0, 0, W, H).data;
+        const thresh = parseInt(els.thresh.value);
+        let hex = "";
+        const bytesPerRow = Math.ceil(W / 8);
+
+        for (let y = 0; y < H; y++) {
+            for (let b = 0; b < bytesPerRow; b++) {
+                let byteVal = 0;
+                for (let bit = 0; bit < 8; bit++) {
+                    if (b*8+bit < W) {
+                        const idx = (y * W + b*8+bit) * 4;
+                        if ((data[idx]+data[idx+1]+data[idx+2])/3 < thresh) byteVal |= (1 << (7-bit));
+                    }
+                }
+                hex += "0x" + byteVal.toString(16).toUpperCase().padStart(2,'0') + ", ";
+            }
+            hex += "\n  ";
+        }
+        return hex.trim().replace(/,$/, '');
+    }
+
+    function generateAll() {
+        const text = els.text.value || "";
+        const W = parseInt(els.w.value);
+        const H = parseInt(els.h.value);
+        const uniqueChars = [...new Set(text.split(''))].filter(c=>c.trim()!=='').sort();
+
+        let code = `#ifndef USER_FONT_H
+#define USER_FONT_H
+
+#include <Arduino.h>
+
+#define FONT_W ${W}
+#define FONT_H ${H}
+
+// ------------------- 字模数据区域 -------------------
+`;
+        
+        let structItems = "";
+
+        uniqueChars.forEach(char => {
+            const hexData = processChar(char, false);
+            const unicode = char.charCodeAt(0);
+            const hexName = unicode.toString(16).toUpperCase();
+            
+            code += `// 字: ${char} (Unicode: 0x${hexName})\n`;
+            code += `const unsigned char BMP_${hexName}[] PROGMEM = {\n  ${hexData}\n};\n\n`;
+            
+            structItems += `  {0x${hexName}, BMP_${hexName}}, // ${char}\n`;
+        });
+
+        code += `
+// ------------------- 索引表结构 -------------------
+typedef struct {
+  uint16_t unicode;        // Unicode 编码 (例如 '你' = 0x4F60)
+  const unsigned char* bitmap; // 对应的字模数组指针
+} FontItem_t;
+
+// 字库索引表
+const FontItem_t FONT_TABLE[] PROGMEM = {
+${structItems}};
+
+// ------------------- 对外辅助函数 -------------------
+
+// 根据 Unicode 获取字模指针 (二分查找法，需保证表是有序的，或者简单遍历)
+const unsigned char* getFontBitmap(uint16_t unicode) {
+  int count = sizeof(FONT_TABLE) / sizeof(FontItem_t);
+  for(int i=0; i<count; i++) {
+    // 读取 PROGMEM 中的 unicode
+    if(pgm_read_word(&FONT_TABLE[i].unicode) == unicode) {
+      // 读取 PROGMEM 中的 指针
+      return (const unsigned char*)pgm_read_ptr(&FONT_TABLE[i].bitmap);
+    }
+  }
+  return NULL; // 没找到
+}
+
+#endif`;
+
+        els.output.value = code;
+        updateUI();
+    }
+
+    function copyCode() { els.output.select(); document.execCommand('copy'); }
+    window.onload = function() { updateUI(); generateAll(); };
+</script>
+</body>
+</html>
