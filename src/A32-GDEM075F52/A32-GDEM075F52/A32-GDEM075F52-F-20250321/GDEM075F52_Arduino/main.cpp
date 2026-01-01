@@ -1,74 +1,66 @@
 #include <Arduino.h>
-#include <SPI.h>
+#include "RGBLight.h"    // 引入 LED 模块
+#include "CalendarApp.h" // 引入日历模块
 
-// 引入官方驱动头文件
-#include "Display_EPD_W21_spi.h"
-#include "Display_EPD_W21.h"
-// #include "Ap_29demo.h"  
-#include "Ap_29demo1.h"  
+// ================= 配置 =================
+const char* WIFI_SSID = "mdy";
+const char* WIFI_PASS = "7894561230";
 
-// 定义 SPI 引脚 (必须与 Display_EPD_W21_spi.h 里的定义配合)
-#define PIN_SCK  15
-#define PIN_MOSI 16
-// CS, DC, RST, BUSY 已经在 spi.h 里定义了
+// S3 板载灯引脚
+#define LED_PIN  48 
+
+// 更新间隔：1分钟 (60 * 1000 毫秒)
+// 注意：墨水屏刷新本身需要约 15-20 秒，所以实际间隔是 1分钟 + 刷新时间
+#define UPDATE_INTERVAL_MS 60000 
+
+// 创建模块实例
+RGBLight led(LED_PIN);
+CalendarApp calendar;
+
+// 记录上次更新的时间
+unsigned long lastUpdateTime = 0;
 
 void setup() {
-   Serial.begin(115200);
-   delay(1000);
-   Serial.println("Starting GDEM075F52 Demo...");
+    // 1. 系统启动缓冲
+    delay(3000); 
+    Serial.begin(115200);
+    Serial.println(">>> 系统启动 (常亮模式) <<<");
 
-   // 1. 初始化引脚
-   // 必须显式设置为 OUTPUT，否则电平拉不动
-   pinMode(EPD_PIN_BUSY, INPUT);  
-   pinMode(EPD_PIN_RST, OUTPUT); 
-   pinMode(EPD_PIN_DC, OUTPUT);    
-   pinMode(EPD_PIN_CS, OUTPUT);    
+    // 2. 初始化模块
+    led.begin();
+    calendar.begin(); // 这里面会初始化 SPI 和 屏幕引脚
 
-   // 2. 初始化 SPI (ESP32-S3 关键一步)
-   // 原厂代码里只有 SPI.begin()，这在 S3 上是跑不通的！
-   SPI.end();
-   SPI.begin(PIN_SCK, -1, PIN_MOSI, EPD_PIN_CS);
-   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0)); 
+    // 3. 开机先立即运行一次，不要傻等1分钟
+    Serial.println("开机首次更新...");
+    led.runBreathingEffect(1); // 快速让灯动一下
+    
+    // 运行日历 (这会阻塞约 15-20 秒)
+    // calendar.test();
+    
+    // 记录当前时间，作为下一次计时的起点
+      calendar.run(WIFI_SSID, WIFI_PASS);
 
-   Serial.println("Hardware initialized. Sending Display Commands...");
-      Serial.println("EPD Init...");
-   EPD_init(); 
-      // 2. 全屏刷图片 (gImage_1 来自 Ap_29demo.h)
-   Serial.println("Displaying Image...");
-   PIC_display(gImage_1);
-   
-   // 3. 进入睡眠
-   Serial.println("Sleep.");
-   EPD_sleep();
-
+    lastUpdateTime = millis();
 }
 
 void loop() {
-   // --- 演示流程 ---
-   
-   // 1. 初始化屏幕
+    // 1. 让呼吸灯一直运行
+    // 只要下面的 if 没触发，这个函数就会飞速运行，灯光非常丝滑
+    led.runBreathingEffect(5); 
 
+    // 2. 检查时间：是不是过去 1 分钟了？
+    if (millis() - lastUpdateTime > UPDATE_INTERVAL_MS) {
+        Serial.println("时间到！开始更新屏幕...");
 
+        // 在更新屏幕前，可以把灯设为某种状态（可选）
+        // 因为 calendar.run 是阻塞的，更新期间呼吸灯会“卡住”不动
+        // 这是单线程单片机的特性，无法避免（除非上 FreeRTOS）
+        
+        // 执行日历任务 (连网 -> 对时 -> 绘图 -> 刷屏)
+        // 过程约 15-20 秒
 
-   // 4. 等待很久再刷，避免频繁刷新伤屏
-   delay(20000); 
-   
-   PIC_display(gImage_1);
-      EPD_init(); 
-
-   // 3. 进入睡眠
-   Serial.println("Sleep.");
-   EPD_sleep();
-   // Serial.println("Display RED...");
-   // EPD_init();
-   // Display_All_Red();
-   // EPD_sleep();
-   // delay(5000);
-
-   // Serial.println("Display White...");
-   // EPD_init();
-   // Display_All_White();
-   // EPD_sleep();
-   // delay(5000);
-
+        // 更新完成后，重置计时器
+        lastUpdateTime = millis();
+        Serial.println("更新完成，等待下一次...");
+    }
 }

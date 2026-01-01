@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800, height=480, initial-scale=1.0">
+    <title>智能日历 - 左右布局版</title>
+    <style>
+        :root {
+            /* 鲜艳配色方案 */
+            --c-black: #000000;
+            --c-white: #FFFFFF;
+            --c-red: #FF0000;
+            /* 鲜艳红 */
+            --c-yellow: #FFFF00;
+            /* 明亮黄 */
+            --c-gray:  #000000;
+            --c-bg-light: #c9c9c9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            width: 800px;
+            height: 480px;
+            font-family: 'Microsoft YaHei', -apple-system, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--c-white);
+            color: var(--c-black);
+        }
+
+        /* ================= 顶部状态栏 (50px) ================= */
+        /* 保持白色背景，黑色文字，底部黑线 */
+        .top-bar {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0px 40px;
+            border-bottom: 2px solid var(--c-black);
+            background-color: var(--c-white);
+            z-index: 10;
+        }
+
+        /* 天气图标 */
+        .weather-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* ================= 天气图标库 ================= */
+        /* 1. 晴 (Sun) */
+        .w-sun {
+            width: 20px;
+            height: 20px;
+            background: var(--c-yellow);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 0 4px var(--c-white);
+            z-index: 1;
+            margin-right: 10px;
+        }
+
+        .w-sun::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background: repeating-conic-gradient(from 0deg,
+                    var(--c-yellow) 0deg 5deg,
+                    transparent 5deg 30deg);
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        /* 2. 多云 (Cloud) */
+        .w-cloud {
+            width: 36px;
+            height: 20px;
+            background: #888888;
+            border-radius: 20px;
+            position: relative;
+            margin-right: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .w-cloud::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 5px;
+            width: 18px;
+            height: 18px;
+            background: #888888;
+            border-radius: 50%;
+        }
+
+        .w-cloud::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            right: 5px;
+            width: 14px;
+            height: 14px;
+            background: #888888;
+            border-radius: 50%;
+        }
+
+        /* 3. 雨 (Rain) */
+        .w-rain {
+            width: 36px;
+            height: 20px;
+            background: #555555;
+            /* 深灰云 */
+            border-radius: 20px;
+            position: relative;
+            margin-right: 10px;
+        }
+
+        .w-rain::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 5px;
+            width: 18px;
+            height: 18px;
+            background: #555555;
+            border-radius: 50%;
+        }
+
+        .w-rain::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            right: 5px;
+            width: 14px;
+            height: 14px;
+            background: #555555;
+            border-radius: 50%;
+        }
+
+        .w-rain .drops {
+            position: absolute;
+            bottom: -12px;
+            left: 10px;
+            width: 3px;
+            height: 8px;
+            background: #40A9FF;
+            border-radius: 2px;
+            box-shadow: 8px 3px 0 #40A9FF, 16px 0 0 #40A9FF;
+            transform: skewX(-15deg);
+        }
+
+        /* 4. 雪 (Snow) */
+        .w-snow {
+            width: 36px;
+            height: 20px;
+            background: #888888;
+            border-radius: 20px;
+            position: relative;
+            margin-right: 10px;
+        }
+
+        .w-snow::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 5px;
+            width: 18px;
+            height: 18px;
+            background: #888888;
+            border-radius: 50%;
+        }
+
+        .w-snow::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            right: 5px;
+            width: 14px;
+            height: 14px;
+            background: #888888;
+            border-radius: 50%;
+        }
+
+        .w-snow .flakes {
+            position: absolute;
+            bottom: -16px;
+            left: 6px;
+            color: #87CEEB;
+            font-size: 18px;
+            line-height: 1;
+            font-weight: bold;
+        }
+
+        /* 5. 雷 (Thunder) */
+        .w-thunder {
+            width: 36px;
+            height: 20px;
+            background: #333333;
+            /* 乌云 */
+            border-radius: 20px;
+            position: relative;
+            margin-right: 10px;
+        }
+
+        .w-thunder::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 5px;
+            width: 18px;
+            height: 18px;
+            background: #333333;
+            border-radius: 50%;
+        }
+
+        .w-thunder::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            right: 5px;
+            width: 14px;
+            height: 14px;
+            background: #333333;
+            border-radius: 50%;
+        }
+
+        .w-thunder .bolt {
+            position: absolute;
+            bottom: -16px;
+            left: 12px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 14px solid var(--c-yellow);
+            transform: skewX(-20deg);
+        }
+
+        .weather-text {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        /* 传感器 */
+        .sensor-group {
+            display: flex;
+            gap: 30px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .sensor-item span:first-child {
+            font-size: 14px;
+            color: var(--c-gray);
+            margin-right: 4px;
+            font-weight: normal;
+        }
+
+        /* 电量 */
+        .battery-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .battery-icon {
+            width: 32px;
+            height: 16px;
+            border: 2px solid var(--c-black);
+            padding: 1px;
+            position: relative;
+        }
+
+        .battery-icon::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: 3px;
+            width: 2px;
+            height: 6px;
+            background: var(--c-black);
+        }
+
+        .battery-fill {
+            width: 80%;
+            height: 100%;
+            background: var(--c-yellow);
+        }
+
+        .battery-text {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* ================= 下部内容区 (左右布局) ================= */
+        .content-container {
+            flex: 1;
+            display: flex;
+            height: calc(480px - 50px);
+        }
+
+        /* 左侧：今日详情 (红色背景) */
+        .left-panel {
+            width: 260px;
+            height: 100%;
+            background-color: var(--c-red);
+            color: var(--c-white);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 5;
+        }
+
+        .lp-year {
+            font-size: 24px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .lp-date {
+            font-size: 120px;
+            /* 稍微调小一点给黄历腾空间 */
+            font-weight: 900;
+            line-height: 1;
+            text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 5px;
+        }
+
+        .lp-day {
+            font-size: 32px;
+            margin-top: 0px;
+            font-weight: bold;
+        }
+
+        .lp-lunar {
+            margin-top: 10px;
+            font-size: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        /* 黄历区域 */
+        .lp-almanac {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .almanac-row {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+        }
+
+        .almanac-label {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .label-yi {
+            background-color: var(--c-yellow);
+            color: var(--c-red);
+        }
+
+        .label-ji {
+            background-color: var(--c-white);
+            color: var(--c-black);
+        }
+
+        .almanac-text {
+            font-size: 16px;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 右侧：月历网格 (白色背景) */
+        .right-panel {
+            flex: 1;
+            padding: 8px 20px;
+            /* 减小内边距 */
+            display: flex;
+            flex-direction: column;
+            background-color: var(--c-white);
+        }
+
+        .month-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            /* 减小下边距 */
+            border-bottom: 2px solid #888;
+            padding-bottom: 4px;
+            /* 减小内边距 */
+        }
+
+        .mh-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--c-black);
+        }
+
+        .mh-nav {
+            font-size: 24px;
+            color: var(--c-gray);
+            font-weight: bold;
+        }
+
+        .calendar-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: 30px repeat(6, 1fr);
+            gap: 2px;
+            /* 减小间距 */
+        }
+
+        .grid-header {
+            text-align: center;
+            font-size: 18px;
+            color: var(--c-gray);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .day-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            position: relative;
+        }
+
+        .d-num {
+            font-size: 22px;
+            /* 保持用户修改的字体大小 */
+            font-weight: bold;
+            color: #000;
+            line-height: 1.2;
+        }
+
+        .d-lunar {
+            font-size: 14px;
+            /* 保持用户修改的字体大小 */
+            color: #333;
+            margin-top: -2px;
+            font-weight: 600;
+        }
+
+        /* 周末 */
+        .is-weekend .d-num {
+            color: var(--c-red);
+        }
+
+        /* 今天 (在右侧网格中也高亮，但样式稍微不同，因为左侧已经有大图了) */
+        .is-today {
+            background-color: var(--c-red);
+            color: var(--c-white);
+            box-shadow: 0 2px 6px rgba(255, 59, 48, 0.4);
+            border-radius: 50%;
+            width: 54px;
+            height: 54px;
+            margin: auto;
+        }
+
+        .is-today .d-num,
+        .is-today .d-lunar,
+        .is-today .d-festival {
+            color: var(--c-white);
+        }
+
+        .is-today .d-lunar {
+            opacity: 0.9;
+        }
+
+        .other-month {
+            opacity: 0.5;
+        }
+
+        /* 节日 */
+        .d-festival {
+            color: var(--c-red);
+            font-weight: bold;
+        }
+
+        .is-weekend .d-festival {
+            color: var(--c-red);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 顶部状态栏 -->
+    <div class="top-bar">
+        <!-- 天气已移至左侧面板 -->
+        <div class="sensor-group">
+            <div class="sensor-item"><span>温度</span>24.5°</div>
+            <div class="sensor-item"><span>湿度</span>48%</div>
+        </div>
+
+        <div class="battery-group">
+            <span class="battery-text">85%</span>
+            <div class="battery-icon">
+                <div class="battery-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下部内容：左右布局 -->
+    <div class="content-container">
+
+        <!-- 左侧：今日详情 -->
+        <div class="left-panel">
+            <!-- 天气信息 (移至此处) -->
+            <div class="weather-group" style="margin-bottom: 15px;">
+                <!-- 切换以下注释来查看不同天气图标 -->
+                <div class="w-sun"></div>
+                <!-- <div class="w-cloud"></div> -->
+                <!-- <div class="w-rain"><div class="drops"></div></div> -->
+                <!-- <div class="w-snow"><div class="flakes">❄ *</div></div> -->
+                <!-- <div class="w-thunder"><div class="bolt"></div></div> -->
+
+                <span class="weather-text">26°C 晴</span>
+            </div>
+
+            <!-- <div class="lp-year">2025</div> -->
+            <div class="lp-date">31</div>
+            <div class="lp-day">星期三</div>
+            <div class="lp-lunar">冬月十一</div>
+
+            <!-- 黄历信息 -->
+            <div class="lp-almanac">
+                <div class="almanac-row">
+                    <div class="almanac-label label-yi">宜</div>
+                    <div class="almanac-text">祭祀 祈福 纳财</div>
+                </div>
+                <div class="almanac-row">
+                    <div class="almanac-label label-ji">忌</div>
+                    <div class="almanac-text">动土 出行 嫁娶</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：月历 -->
+        <div class="right-panel">
+            <div class="month-header">
+                <div class="mh-title">12月</div>
+                <div class="mh-nav">2025</div>
+            </div>
+
+            <div class="calendar-grid">
+                <div class="grid-header">一</div>
+                <div class="grid-header">二</div>
+                <div class="grid-header">三</div>
+                <div class="grid-header">四</div>
+                <div class="grid-header">五</div>
+                <div class="grid-header" style="color:var(--c-red)">六</div>
+                <div class="grid-header" style="color:var(--c-red)">日</div>
+
+                <!-- 上月 -->
+                <div class="day-cell other-month"><span class="d-num">24</span><span class="d-lunar">初四</span></div>
+                <div class="day-cell other-month"><span class="d-num">25</span><span class="d-lunar">初五</span></div>
+                <div class="day-cell other-month"><span class="d-num">26</span><span class="d-lunar">初六</span></div>
+                <div class="day-cell other-month"><span class="d-num">27</span><span class="d-lunar">初七</span></div>
+                <div class="day-cell other-month"><span class="d-num">28</span><span class="d-lunar">初八</span></div>
+                <div class="day-cell other-month"><span class="d-num">29</span><span class="d-lunar">初九</span></div>
+                <div class="day-cell other-month"><span class="d-num">30</span><span class="d-lunar">初十</span></div>
+
+                <!-- 本月 -->
+                <div class="day-cell"><span class="d-num">1</span><span class="d-lunar">十一</span></div>
+                <div class="day-cell"><span class="d-num">2</span><span class="d-lunar">十二</span></div>
+                <div class="day-cell"><span class="d-num">3</span><span class="d-lunar">十三</span></div>
+                <div class="day-cell"><span class="d-num">4</span><span class="d-lunar">十四</span></div>
+                <div class="day-cell"><span class="d-num">5</span><span class="d-lunar">十五</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">6</span><span class="d-lunar">十六</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">7</span><span class="d-lunar">十七</span></div>
+
+                <div class="day-cell"><span class="d-num">8</span><span class="d-lunar">十八</span></div>
+                <div class="day-cell"><span class="d-num">9</span><span class="d-lunar">十九</span></div>
+                <div class="day-cell"><span class="d-num">10</span><span class="d-lunar">二十</span></div>
+                <div class="day-cell"><span class="d-num">11</span><span class="d-lunar">廿一</span></div>
+                <div class="day-cell"><span class="d-num">12</span><span class="d-lunar">廿二</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">13</span><span class="d-lunar">廿三</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">14</span><span class="d-lunar">廿四</span></div>
+
+                <div class="day-cell"><span class="d-num">15</span><span class="d-lunar">廿五</span></div>
+                <div class="day-cell"><span class="d-num">16</span><span class="d-lunar">廿六</span></div>
+                <div class="day-cell"><span class="d-num">17</span><span class="d-lunar">廿七</span></div>
+                <div class="day-cell"><span class="d-num">18</span><span class="d-lunar">廿八</span></div>
+                <div class="day-cell"><span class="d-num">19</span><span class="d-lunar">廿九</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">20</span><span class="d-lunar">三十</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">21</span><span class="d-lunar d-festival">冬至</span>
+                </div>
+
+                <div class="day-cell"><span class="d-num">22</span><span class="d-lunar">初二</span></div>
+                <div class="day-cell"><span class="d-num">23</span><span class="d-lunar">初三</span></div>
+                <div class="day-cell"><span class="d-num">24</span><span class="d-lunar">初四</span></div>
+                <div class="day-cell"><span class="d-num">25</span><span class="d-lunar d-festival">圣诞</span></div>
+                <div class="day-cell"><span class="d-num">26</span><span class="d-lunar">初六</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">27</span><span class="d-lunar">初七</span></div>
+                <div class="day-cell is-weekend"><span class="d-num">28</span><span class="d-lunar">初八</span></div>
+
+                <div class="day-cell"><span class="d-num">29</span><span class="d-lunar">初九</span></div>
+                <div class="day-cell"><span class="d-num">30</span><span class="d-lunar">初十</span></div>
+                <div class="day-cell is-today"><span class="d-num">31</span><span class="d-lunar">十一</span></div>
+                <div class="day-cell other-month"><span class="d-num">1</span><span class="d-lunar d-festival">元旦</span>
+                </div>
+                <div class="day-cell other-month"><span class="d-num">2</span><span class="d-lunar">十三</span></div>
+                <div class="day-cell other-month"><span class="d-num">3</span><span class="d-lunar">十四</span></div>
+                <div class="day-cell other-month"><span class="d-num">4</span><span class="d-lunar">十五</span></div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
