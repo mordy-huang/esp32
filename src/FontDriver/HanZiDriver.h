@@ -78,8 +78,12 @@ class HanziDriver {
 
         if (bitmap != NULL) {
           drawSingleChar(cursorX, y, bitmap,color);
-          cursorX += FONT_W; // 汉字间距
-        } else {
+          // 判断是否为数字字符 ('0' 到 '9')
+          if (unicode >= '0' && unicode <= '9') {
+            cursorX += (FONT_W / 2); // 数字：间隔减半
+          } else {
+            cursorX += (FONT_W-4);       // 其他字符：全宽
+          }        } else {
           // 如果字库里没这个字，留半个身位的空格
           cursorX += (FONT_W / 2); 
         }

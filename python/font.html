@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32 字库生成器 V5 (支持自定义/瘦金体)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f6f9; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; display: flex; gap: 25px; }
+        .panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .left { flex: 1; min-width: 350px; } 
+        .right { flex: 1.5; display: flex; flex-direction: column; }
+        
+        /* 控件样式 */
+        .control-group { margin-bottom: 15px; border-bottom: 1px dashed #eee; padding-bottom: 10px; }
+        label { font-weight: bold; font-size: 0.9em; display: block; margin-bottom: 5px; color: #555; }
+        input[type="text"], input[type="number"], textarea, select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        textarea { height: 80px; font-size: 16px; }
+        
+        /* 文件上传按钮美化 */
+        .file-upload { position: relative; display: inline-block; width: 100%; margin-bottom: 10px;}
+        .file-upload input[type="file"] { display: none; }
+        .file-upload-label { display: block; padding: 10px; background: #6c5ce7; color: white; text-align: center; border-radius: 5px; cursor: pointer; transition: 0.2s; font-weight: bold;}
+        .file-upload-label:hover { background: #5649c0; }
+        
+        .row { display: flex; gap: 10px; } .row > * { flex: 1; }
+        
+        /* 画布 */
+        canvas { border: 2px solid #ddd; background: #fff; margin: 0 auto; display: block; image-rendering: pixelated; background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%, #f0f0f0), linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%, #f0f0f0); background-size: 20px 20px; background-position: 0 0, 10px 10px;}
+        
+        textarea#code { height: 400px; font-family: monospace; font-size: 12px; background: #2d2d2d; color: #a8bac5; border:none; padding:15px; border-radius:8px;}
+        
+        button.gen-btn { background:#3498db; color:white; font-weight:bold; padding: 12px; border:none; border-radius:4px; cursor:pointer; font-size:16px; width:100%; margin-top:10px;}
+        button.gen-btn:hover { background:#2980b9; }
+
+        .loaded-font-tag { display:none; background:#00b894; color:white; font-size:12px; padding:2px 6px; border-radius:4px; margin-left:5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel left">
+        <h2>1. 字体与文字</h2>
+        
+        <div class="control-group" style="background:#f0f3ff; padding:10px; border-radius:8px; border:1px solid #dce4ff;">
+            <label style="color:#6c5ce7;">★ 第一步：上传字体文件 (.ttf / .otf)</label>
+            <div class="file-upload">
+                <label for="fontFile" class="file-upload-label">📁 点击加载瘦金体/其他字体文件</label>
+                <input type="file" id="fontFile" accept=".ttf,.otf,.woff">
+            </div>
+            <div id="fontStatus" style="font-size:12px; color:#666; text-align:center;">当前使用系统默认字体</div>
+        </div>
+
+        <div class="control-group">
+            <label>输入文字:</label>
+            <textarea id="txt">冬月十一</textarea>
+        </div>
+        
+        <div class="control-group">
+            <div class="row">
+                <div><label>字库对象名 (英文)</label><input type="text" id="fontName" value="ShouJin_32"></div>
+            </div>
+            <div class="row" style="margin-top:5px;">
+                <div><label>宽 (px)</label><input type="number" id="w" value="32"></div>
+                <div><label>高 (px)</label><input type="number" id="h" value="32"></div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <div><label>字号 <span id="val_size">28</span></label><input type="range" id="size" min="8" max="128" value="28"></div>
+                <div><label>粗细 <span id="val_weight">400</span></label><input type="range" id="weight" min="100" max="900" step="100" value="400"></div>
+            </div>
+            <div class="row">
+                <div><label>X 偏移 <span id="val_ox">0</span></label><input type="range" id="ox" min="-30" max="30" value="0"></div>
+                <div><label>Y 偏移 <span id="val_oy">4</span></label><input type="range" id="oy" min="-30" max="30" value="4"></div>
+            </div>
+            <label>二值化阈值 <span id="val_th">128</span></label><input type="range" id="th" min="1" max="255" value="128">
+        </div>
+        
+        <button class="gen-btn" onclick="gen()">生成 C++ 代码</button>
+    </div>
+
+    <div class="panel right">
+        <h2>2. 效果预览</h2>
+        <div style="text-align:center; padding:10px; margin-bottom:10px;">
+            <canvas id="cvs"></canvas>
+            <div style="font-size:12px; color:#666; margin-top:5px;">预览图 (CSS放大显示，生成数据为 <span id="realSize">32x32</span>)</div>
+        </div>
+        <textarea id="code" readonly placeholder="点击生成代码..."></textarea>
+    </div>
+</div>
+
+<script>
+    const $ = id => document.getElementById(id);
+    const ctx = $('cvs').getContext('2d');
+    
+    // 状态变量
+    let customFontFamily = null; // 存储加载的字体名
+
+    // 监听字体文件上传
+    $('fontFile').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+            try {
+                const data = event.target.result;
+                // 使用 FontFace API 动态加载字体
+                const fontName = 'UserCustomFont';
+                const fontFace = new FontFace(fontName, data);
+                await fontFace.load();
+                document.fonts.add(fontFace);
+                
+                customFontFamily = fontName;
+                
+                // 更新 UI
+                $('fontStatus').innerHTML = `✅ 已加载: <strong>${file.name}</strong>`;
+                $('fontStatus').style.color = '#00b894';
+                
+                // 自动刷新
+                gen();
+            } catch (err) {
+                alert('字体加载失败，请确保是有效的 .ttf 或 .otf 文件');
+                console.error(err);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // 更新显示数值
+    ['size','weight','ox','oy','th'].forEach(k => {
+        $(k).addEventListener('input', () => {
+            $(`val_${k}`).innerText = $(k).value;
+            gen();
+        });
+    });
+    
+    ['txt','w','h','fontName'].forEach(k => $(k).addEventListener('input', gen));
+
+    function gen() {
+        const text = $('txt').value;
+        const W = parseInt($('w').value), H = parseInt($('h').value);
+        const name = $('fontName').value || "MyFont";
+        
+        $('realSize').innerText = `${W}x${H}`;
+        
+        // 调整 Canvas 尺寸 (内部分辨率)
+        $('cvs').width = W; 
+        $('cvs').height = H;
+        
+        // CSS 缩放预览 (让小尺寸也能看清)
+        const scale = W < 64 ? 6 : 2; 
+        $('cvs').style.width = (W * scale) + 'px'; 
+        $('cvs').style.height = (H * scale) + 'px';
+
+        // 核心处理函数：绘制并提取
+        const process = (char, draw) => {
+            // 清空背景
+            if(draw) {
+                ctx.fillStyle = 'white'; 
+                ctx.fillRect(0,0,W,H);
+                ctx.fillStyle = 'black';
+                
+                // 字体选择逻辑：有自定义用自定义，没有用默认
+                const family = customFontFamily ? customFontFamily : 'sans-serif';
+                ctx.font = `${$('weight').value} ${$('size').value}px "${family}"`; 
+                
+                ctx.textAlign='center'; 
+                ctx.textBaseline='middle';
+                ctx.fillText(char, W/2 + parseInt($('ox').value), H/2 + parseInt($('oy').value));
+            }
+            if(draw) return;
+
+            // 提取像素
+            const img = ctx.getImageData(0,0,W,H).data;
+            const th = parseInt($('th').value);
+            let hex = "";
+            const bytesPerRow = Math.ceil(W/8);
+            
+            for(let y=0; y<H; y++) {
+                for(let b=0; b<bytesPerRow; b++) {
+                    let byte=0;
+                    for(let i=0; i<8; i++) {
+                        let x = b*8+i;
+                        if(x<W) {
+                            // RGB均值判断黑白
+                            const avg = (img[(y*W+x)*4] + img[(y*W+x)*4+1] + img[(y*W+x)*4+2])/3;
+                            if(avg < th) byte |= (1<<(7-i));
+                        }
+                    }
+                    hex += "0x"+byte.toString(16).toUpperCase().padStart(2,'0')+",";
+                }
+                hex += "\n  ";
+            }
+            return hex.replace(/,$/, ''); // 去掉最后一个逗号
+        };
+
+        // 1. 先预览第一个字
+        if(text) process(text[0], true);
+
+        // 2. 生成代码
+        const unique = [...new Set(text.split('').filter(c=>c.trim()))].sort();
+        let s = `#ifndef ${name}_H\n#define ${name}_H\n\n#include "HanziDriver.h"\n\n`;
+        let list = "";
+        
+        unique.forEach(c => {
+            process(c, true); // 重绘到 canvas 以便提取
+            const data = process(c, false);
+            const code = c.charCodeAt(0).toString(16).toUpperCase();
+            const arrName = `BMP_${name}_${code}`;
+            s += `// ${c}\nconst unsigned char ${arrName}[] PROGMEM = {\n  ${data}\n};\n`;
+            list += `  {0x${code}, ${arrName}},\n`;
+        });
+
+        s += `\nconst FontItem_t TABLE_${name}[] PROGMEM = {\n${list}};\n\n`;
+        s += `// 字体对象: ${name}\n`;
+        s += `const HanziFont ${name} = {\n  ${W}, ${H},\n  TABLE_${name},\n  ${unique.length}\n};\n\n#endif`;
+        
+        $('code').value = s;
+    }
+    
+    window.onload = gen;
+</script>
+</body>
+</html>
