@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高清四色墨水屏图标设计</title>
+    <style>
+        body {
+            background-color: #f5f5f7;
+            /* 模拟干净的纸张背景 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        p.subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 0.9em;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 40px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        canvas {
+            width: 128px;
+            /* 屏幕显示大小 */
+            height: 128px;
+            margin-bottom: 15px;
+        }
+
+        .label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>E-Ink Weather (High-Res)</h1>
+    <p class="subtitle">配色：黑 (K) / 白 (W) / 黄 (Y) / 红 (R)</p>
+
+    <div class="gallery">
+        <div class="card">
+            <canvas id="cSun" width="256" height="256"></canvas>
+            <span class="label">晴 (Clear)</span>
+        </div>
+        <div class="card">
+            <canvas id="cCloudySun" width="256" height="256"></canvas>
+            <span class="label">多云 (Partly Cloudy)</span>
+        </div>
+        <div class="card">
+            <canvas id="cOvercast" width="256" height="256"></canvas>
+            <span class="label">阴 (Overcast)</span>
+        </div>
+        <div class="card">
+            <canvas id="cRain" width="256" height="256"></canvas>
+            <span class="label">雨 (Rain)</span>
+        </div>
+        <div class="card">
+            <canvas id="cStorm" width="256" height="256"></canvas>
+            <span class="label">雷暴 (Storm)</span>
+        </div>
+        <div class="card">
+            <canvas id="cSnow" width="256" height="256"></canvas>
+            <span class="label">雪 (Snow)</span>
+        </div>
+    </div>
+
+    <script>
+        // --- 颜色定义 (更高级的色值，但在墨水屏上会映射为纯色) ---
+        const C = {
+            black: '#1a1a1a', // 稍微柔和一点的黑，模拟墨水
+            white: '#ffffff',
+            yellow: '#FFD700', // 纯正的金黄
+            red: '#E63946'     // 稍微偏深一点的红，更有质感
+        };
+
+        const ctxConfig = {
+            lineThick: 8,       // 粗轮廓
+            lineThin: 5,        // 细节线条
+        };
+
+        // --- 绘图核心函数 ---
+
+        // 1. 绘制一个现代感的云朵 (使用贝塞尔曲线，底部平坦，上部饱满)
+        function drawModernCloud(ctx, x, y, scale, color, strokeColor = C.black) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            ctx.beginPath();
+            // 起点：左下角
+            ctx.moveTo(-40, 20);
+            // 左侧圆弧
+            ctx.bezierCurveTo(-55, 20, -65, 5, -65, -10);
+            ctx.bezierCurveTo(-65, -35, -45, -45, -30, -40);
+            // 顶部圆弧 (大)
+            ctx.bezierCurveTo(-20, -65, 20, -65, 35, -40);
+            // 右侧圆弧
+            ctx.bezierCurveTo(60, -45, 75, -25, 75, 0);
+            ctx.bezierCurveTo(75, 20, 60, 20, 50, 20);
+            // 底部直线
+            ctx.lineTo(-40, 20);
+
+            ctx.closePath();
+
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            ctx.lineWidth = ctxConfig.lineThick;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // 2. 绘制精致的太阳
+        function drawSun(ctx, x, y, radius, isHot = false) {
+            ctx.save();
+
+            // 太阳主体
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = isHot ? C.red : C.yellow; // 高温天可以用红色太阳
+            ctx.fill();
+
+            // 只有在某些风格下才描边，这里我们选择不描边太阳本体，保持干净
+            // 但为了墨水屏清晰度，如果背景复杂，可以加一圈白色描边做遮罩
+
+            // 光芒 (断开式设计)
+            ctx.strokeStyle = isHot ? C.red : C.yellow; // 光芒同色
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+
+            const rayCount = 12; // 更多光芒，更精致
+            for (let i = 0; i < rayCount; i++) {
+                const angle = (i * 360 / rayCount) * Math.PI / 180;
+                const rStart = radius + 12;
+                const rEnd = radius + 24;
+
+                ctx.beginPath();
+                ctx.moveTo(x + Math.cos(angle) * rStart, y + Math.sin(angle) * rStart);
+                ctx.lineTo(x + Math.cos(angle) * rEnd, y + Math.sin(angle) * rEnd);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 3. 绘制雨滴 (胶囊状，倾斜)
+        function drawRainCapsules(ctx, x, y, color) {
+            ctx.save();
+            ctx.fillStyle = color;
+            const drops = [
+                { x: -25, y: 40 },
+                { x: 0, y: 55 },
+                { x: 25, y: 40 }
+            ];
+
+            drops.forEach(d => {
+                ctx.beginPath();
+                // 画一个圆角矩形(胶囊)并旋转
+                ctx.translate(x + d.x, y + d.y);
+                ctx.rotate(15 * Math.PI / 180); // 倾斜 15度
+
+                const w = 8;
+                const h = 24;
+                // 绘制胶囊路径
+                ctx.roundRect(-w / 2, -h / 2, w, h, w / 2);
+                ctx.fill();
+
+                // 复位
+                ctx.rotate(-15 * Math.PI / 180);
+                ctx.translate(-(x + d.x), -(y + d.y));
+            });
+            ctx.restore();
+        }
+
+        // 4. 绘制闪电 (尖锐、折线)
+        function drawSharpBolt(ctx, x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            ctx.beginPath();
+            ctx.moveTo(10, -20);
+            ctx.lineTo(-15, 10);
+            ctx.lineTo(-5, 10);
+            ctx.lineTo(-15, 45); // 尖端
+            ctx.lineTo(15, 5);
+            ctx.lineTo(5, 5);
+            ctx.lineTo(20, -20);
+            ctx.closePath();
+
+            // 红色闪电核心
+            ctx.fillStyle = C.red;
+            ctx.fill();
+
+            // 黑色轮廓
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'miter'; // 尖角连接
+            ctx.strokeStyle = C.black;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // 5. 绘制几何雪花 (六边形结构)
+        function drawGeoSnow(ctx, x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.strokeStyle = C.black;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+
+            for (let i = 0; i < 6; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, 25);
+                ctx.stroke();
+
+                // 分叉
+                ctx.beginPath();
+                ctx.moveTo(0, 15);
+                ctx.lineTo(-8, 20);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, 15);
+                ctx.lineTo(8, 20);
+                ctx.stroke();
+
+                ctx.rotate(Math.PI / 3);
+            }
+            // 中间加个红点点缀，增加趣味
+            ctx.beginPath();
+            ctx.arc(0, 0, 3, 0, Math.PI * 2);
+            ctx.fillStyle = C.red;
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+
+        // --- 组合渲染 ---
+
+        function render(id, drawFn) {
+            const cvs = document.getElementById(id);
+            const ctx = cvs.getContext('2d');
+            // 启用抗锯齿
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+
+            drawFn(ctx, cvs.width / 2, cvs.height / 2);
+        }
+
+        // 1. 晴天：大大的黄色实心圆，非常醒目
+        render('cSun', (ctx, cx, cy) => {
+            drawSun(ctx, cx, cy, 55, false);
+        });
+
+        // 2. 多云：云遮挡太阳
+        render('cCloudySun', (ctx, cx, cy) => {
+            // 先画太阳 (在左上)
+            drawSun(ctx, cx - 30, cy - 30, 45, false);
+
+            // 关键：给云朵加一层白色描边(作为遮罩)，让太阳和云之间有间隙
+            drawModernCloud(ctx, cx + 10, cy + 20, 1.1, C.white, C.white); // 遮罩层
+            drawModernCloud(ctx, cx + 10, cy + 20, 1.0, C.white, C.black); // 实际层
+        });
+
+        // 3. 阴天：两朵云叠加
+        render('cOvercast', (ctx, cx, cy) => {
+            // 后面一朵 (灰色填充表示阴影? 墨水屏没有灰，用白色填充黑色细描边，或者用黄色填充表示底色)
+            // 这里我们用黄色填充后面的云，增加层次感，且符合四色屏优势
+            drawModernCloud(ctx, cx - 30, cy - 20, 0.9, C.yellow, C.black);
+
+            // 前面一朵
+            // 白色遮罩
+            drawModernCloud(ctx, cx + 10, cy + 15, 1.0, C.white, C.white);
+            // 实体
+            drawModernCloud(ctx, cx + 10, cy + 15, 1.0, C.white, C.black);
+        });
+
+        // 4. 雨天：云 + 黑色雨滴
+        render('cRain', (ctx, cx, cy) => {
+            // 先画雨滴
+            drawRainCapsules(ctx, cx, cy + 10, C.black);
+            // 再画云
+            drawModernCloud(ctx, cx, cy - 10, 1.0, C.white, C.black);
+        });
+
+        // 5. 雷暴：云 + 红色闪电
+        render('cStorm', (ctx, cx, cy) => {
+            // 闪电
+            drawSharpBolt(ctx, cx + 10, cy + 30);
+
+            drawSharpBolt(ctx, cx-30, cy + 30);
+
+            // 云
+            drawModernCloud(ctx, cx - 10, cy - 10, 1.0, C.white, C.black);
+
+            // 为了让闪电看起来是从云里劈出来的，不画遮罩，直接压在闪电上面？
+            // 不，闪电通常很亮，在前面。但为了构图，我们让云压住闪电的上半部分。
+            // 重新画一次云的下半部分遮挡？
+            // 简单做法：云在最上层
+            drawModernCloud(ctx, cx - 10, cy - 10, 1.0, C.white, C.black);
+            // 再把闪电画一次在上面？不，闪电从云底出来即可。
+            // 调整位置：
+            // 重画闪电在下方
+            drawSharpBolt(ctx, cx + 5, cy + 35);
+        });
+
+        // 6. 下雪：云 + 几何雪花
+        render('cSnow', (ctx, cx, cy) => {
+            // 左边一个雪花
+            drawGeoSnow(ctx, cx - 25, cy + 40);
+            // 右边一个雪花(小一点)
+            ctx.save();
+            ctx.scale(0.7, 0.7);
+            drawGeoSnow(ctx, (cx + 35) / 0.7, (cy + 55) / 0.7);
+            ctx.restore();
+
+            // 云
+            drawModernCloud(ctx, cx, cy - 10, 1.0, C.white, C.black);
+        });
+
+    </script>
+</body>
+
+</html>

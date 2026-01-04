@@ -48,7 +48,7 @@ def html_to_png(html_path, output_path, width=800, height=480):
 if __name__ == "__main__":
     # 默认路径配置
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    html_file = os.path.join(project_root, "python", "calendarUI.html")
-    output_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calendar_ui.png")
+    html_file = os.path.join(project_root, "python", "ui.html")
+    output_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui.png")
     
     html_to_png(html_file, output_file)

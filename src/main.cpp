@@ -27,7 +27,6 @@ void setup()
   Serial.begin(115200);
   Serial.println(">>> 系统启动 (常亮模式) <<<");
   // 2. 直接使用 Secrets.h 里定义的变量名
-  // WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   // Serial.print("正在连接 WiFi: ");
   // Serial.println(WIFI_SSID); // 打印一下名字确认
@@ -49,13 +48,6 @@ void setup()
 
   // 记录当前时间，作为下一次计时的起点
   calendar.run(WIFI_SSID, WIFI_PASS);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
 
   //
 

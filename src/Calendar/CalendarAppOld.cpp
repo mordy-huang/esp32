@@ -1,7 +1,7 @@
 #include "CalendarAppOld.h"
 // 引入你生成的底图文件 
 // ⚠️ 如果你的文件名不是 Ap_29demo.h，请修改这里！
-#include "Ap_29demo.h" 
+#include "BackgroundImage.h" 
 
 // 引脚定义 (ESP32-S3)
 #define PIN_SCK  15
@@ -91,7 +91,7 @@ void CalendarAppOld::drawCalendarLayout(struct tm *now) {
     // -----------------------------------------------------
     // 直接把 gImage_1 (96KB) 拷贝到显存 buffer
     Serial.println("正在加载底图...");
-    memcpy(buffer, gImage_1, 800 * 480 / 4);
+    memcpy(buffer, Huang_Li_Image, 800 * 480 / 4);
 
     // -----------------------------------------------------
     // 2. 填入动态数据 (Overlay)
@@ -188,7 +188,7 @@ void CalendarAppOld::test() {
    
     Serial.println("正在绘制测试图");
     EPD_init(); //Full screen refresh initialization.
-    PIC_display(gImage_1);//To Display one image using full screen refresh.
+    PIC_display(Huang_Li_Image);//To Display one image using full screen refresh.
     EPD_sleep();//Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
     delay(5000); //Delay for 5s.
     

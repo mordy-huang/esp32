@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Smart Calendar</title>
+    <style>
+        :root {
+            /* --- Palette (No Green) --- */
+            --c-black: #000000;
+            --c-white: #ffffff;
+            --c-red: #ff0000;
+            /* Deep Red */
+            --c-yellow: #FFFF00;
+            /* Muted Gold */
+            --c-gray: #666666;
+
+            /* --- Typography --- */
+            --font-art: "Microsoft YaHei", "PingFang SC", sans-serif;
+            --font-num: "Arial", sans-serif;
+
+            /* --- Font Scale --- */
+            --fs-huge: 160px;
+            --fs-xl: 32px;
+            --fs-lg: 20px;
+            --fs-md: 14px;
+            --fs-sm: 12px;
+
+            --w: 800px;
+            --h: 480px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: var(--font-art);
+            color: var(--c-black);
+        }
+
+        #app {
+            width: var(--w);
+            height: var(--h);
+            background-color: var(--c-white);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            /* border: 4px solid var(--c-black); */
+        }
+
+        .page {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none;
+            flex-direction: column;
+            background: var(--c-white);
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        /* --- Common Utilities --- */
+        .status-bar {
+            height: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            font-size: var(--fs-md);
+            border-bottom: 2px solid var(--c-black);
+            background: var(--c-white);
+            font-family: var(--font-num);
+            font-weight: bold;
+        }
+
+        .status-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        /* Battery Icon Styles */
+        .battery-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: var(--font-num);
+            font-size: var(--fs-md);
+            font-weight: bold;
+        }
+
+        .battery-icon {
+            width: 24px;
+            height: 12px;
+            border: 2px solid var(--c-black);
+            border-radius: 2px;
+            position: relative;
+            padding: 1px;
+        }
+
+        .battery-icon::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            right: -4px;
+            width: 2px;
+            height: 4px;
+            background: var(--c-black);
+            border-radius: 0 1px 1px 0;
+        }
+
+        .battery-level {
+            height: 100%;
+            background-color: var(--c-black);
+            border-radius: 1px;
+        }
+
+        /* --- Page 1: Almanac (黄历) --- */
+        #page-almanac.active {
+            display: grid;
+            grid-template-rows: 30px 1fr;
+        }
+
+        .almanac-content {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 100%;
+        }
+
+        .almanac-left {
+            background-color: var(--c-red);
+            color: var(--c-white);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-right: 2px solid var(--c-black);
+        }
+
+        .almanac-year-month {
+            font-size: var(--fs-xl);
+            font-family: var(--font-art);
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .almanac-day {
+            font-size: var(--fs-huge);
+            font-weight: bold;
+            line-height: 1;
+            font-family: var(--font-num);
+        }
+
+        .almanac-week {
+            font-size: var(--fs-xl);
+            margin-top: 10px;
+        }
+
+        .almanac-right {
+            padding: 15px 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .lunar-row {
+            border-bottom: 2px solid var(--c-black);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .lunar-main {
+            font-size: var(--fs-xl);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .lunar-sub {
+            font-size: var(--fs-lg);
+            color: var(--c-gray);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: var(--fs-md);
+            color: var(--c-gray);
+            font-weight: bold;
+        }
+
+        .info-value {
+            font-size: var(--fs-lg);
+            font-weight: bold;
+        }
+
+        .yi-ji-section {
+            margin-top: 10px;
+        }
+
+        .yi-ji-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 10px;
+            align-items: center;
+            /* Center vertically */
+        }
+
+        .yj-badge {
+            width: 32px;
+            /* Reduced size */
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            /* Reduced text size */
+            font-weight: bold;
+            /* Bold text */
+            flex-shrink: 0;
+            font-family: var(--font-art);
+        }
+
+        /* Yi: Yellow Background, Black Text */
+        .bg-yi {
+            background-color: var(--c-yellow);
+            color: var(--c-black);
+        }
+
+        /* Ji: Red Background, White Text */
+        .bg-ji {
+            background-color: var(--c-red);
+            color: var(--c-white);
+        }
+
+        .yj-text {
+            font-size: var(--fs-md);
+            line-height: 1.4;
+        }
+
+        .weather-box {
+            border: 2px solid var(--c-black);
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            background: #fff;
+        }
+
+        .weather-temp {
+            font-size: var(--fs-xl);
+            font-family: var(--font-num);
+            font-weight: bold;
+        }
+
+        .weather-desc {
+            font-size: var(--fs-md);
+            text-align: right;
+        }
+
+        /* --- Page 2: Calendar (月历) --- */
+        .cal-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 15px;
+        }
+
+        .cal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 3px solid var(--c-red);
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+
+        .cal-title {
+            font-size: var(--fs-xl);
+            font-weight: bold;
+        }
+
+        .cal-info-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: var(--fs-md);
+            color: var(--c-black);
+            font-weight: bold;
+            font-family: var(--font-num);
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: 24px repeat(6, 1fr);
+            gap: 4px;
+            flex-grow: 1;
+        }
+
+        .cal-head {
+            text-align: center;
+            font-size: var(--fs-md);
+            font-weight: bold;
+            align-self: center;
+        }
+
+        .cal-cell {
+            border: 1px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2px;
+            background: white;
+            position: relative;
+        }
+
+        .cal-cell.today {
+            border: 2px solid var(--c-red);
+            background: #fff;
+        }
+
+        .cal-cell.today .cell-solar {
+            color: var(--c-red);
+        }
+
+        .cell-solar {
+            font-size: 24px;
+            font-family: var(--font-num);
+            font-weight: bold;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .cell-lunar {
+            font-size: var(--fs-sm);
+            color: var(--c-gray);
+            line-height: 1;
+        }
+
+        /* Status Text (Small Badge) */
+        .status-text {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 10px;
+            line-height: 1;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .st-rest {
+            background-color: var(--c-red);
+            color: var(--c-white);
+        }
+
+        .st-makeup {
+            background-color: var(--c-gray);
+            color: var(--c-white);
+        }
+
+        .st-holiday {
+            background-color: var(--c-yellow);
+            color: var(--c-black);
+        }
+
+        /* --- Page 3: Clock --- */
+        /* IMPORTANT: Use .active to override default display:none */
+        #page-clock.active {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 50px;
+        }
+
+        .clock-rim {
+            width: 380px;
+            height: 380px;
+            border: 10px solid var(--c-black);
+            border-radius: 50%;
+            position: relative;
+            background: var(--c-white);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+
+        .clock-tick {
+            background-color: var(--c-black);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center;
+        }
+
+        .tick-hour {
+            width: 6px;
+            height: 18px;
+            margin-left: -3px;
+            margin-top: -9px;
+        }
+
+        .tick-min {
+            width: 2px;
+            height: 8px;
+            margin-left: -1px;
+            margin-top: -4px;
+        }
+
+        .clock-num {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            margin-left: -15px;
+            margin-top: -15px;
+            text-align: center;
+            line-height: 30px;
+            font-size: 24px;
+            font-family: var(--font-num);
+            font-weight: bold;
+        }
+
+        .hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            background: var(--c-black);
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        .hand.h {
+            width: 12px;
+            height: 80px;
+            margin-left: -6px;
+        }
+
+        .hand.m {
+            width: 6px;
+            height: 120px;
+            margin-left: -3px;
+        }
+
+        .center-cap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: var(--c-red);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            border: 3px solid var(--c-white);
+        }
+
+        /* Right Panel Info */
+        .clock-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            height: 300px;
+            gap: 20px;
+            font-family: var(--font-art);
+            color: var(--c-black);
+        }
+
+        /* Status Top Right for Clock Page */
+        .clock-status-top {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: var(--fs-md);
+            font-weight: bold;
+            color: var(--c-black);
+            font-family: var(--font-num);
+        }
+
+        .clock-date {
+            font-size: 32px;
+            color: var(--c-gray);
+            font-weight: bold;
+        }
+
+        .clock-week {
+            font-size: 40px;
+            font-weight: bold;
+        }
+
+        /* --- Page 4: Gallery --- */
+        #page-gallery {
+            background: var(--c-black);
+            justify-content: center;
+            align-items: center;
+        }
+
+        #gallery-img {
+            max-width: 100%;
+            max-height: 100%;
+            border: 10px solid var(--c-white);
+        }
+
+        /* --- Controls --- */
+        #controls {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 300;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 15px;
+            border-radius: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 5px 15px;
+            font-family: var(--font-art);
+            font-size: var(--fs-md);
+            cursor: pointer;
+            border: 1px solid #999;
+            background: #fff;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #eee;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+        <!-- Page 1: Almanac -->
+        <div id="page-almanac" class="page active">
+            <div class="status-bar">
+                <div>ESP32 Calendar</div>
+                <div class="status-right">
+                    <span>温度 24.5°C / 湿度 45%</span>
+                    <div class="battery-group">
+                        <div class="battery-icon">
+                            <div class="battery-level" style="width: 85%;"></div>
+                        </div>
+                        <span>85%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="almanac-content">
+                <div class="almanac-left">
+                    <div class="almanac-year-month">2026年 1月</div>
+                    <div class="almanac-day">03</div>
+                    <div class="almanac-week">星期六</div>
+                </div>
+                <div class="almanac-right">
+                    <div>
+                        <div class="lunar-row">
+                            <div class="lunar-main">冬月十五</div>
+                            <div class="lunar-sub">乙巳年 戊子月 丙午日</div>
+                        </div>
+
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">生肖</span>
+                                <span class="info-value">蛇 (Snake)</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">财神</span>
+                                <span class="info-value">正西</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">冲煞</span>
+                                <span class="info-value">冲鼠 煞北</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">彭祖</span>
+                                <span class="info-value">丙不修灶</span>
+                            </div>
+                        </div>
+
+                        <div class="yi-ji-section">
+                            <div class="yi-ji-row">
+                                <div class="yj-badge bg-yi">宜</div>
+                                <div class="yj-text">祭祀 祈福 求嗣 开光 出行 解除 伐木 拆卸</div>
+                            </div>
+                            <div class="yi-ji-row">
+                                <div class="yj-badge bg-ji">忌</div>
+                                <div class="yj-text">嫁娶 移徙 入宅 安葬</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="weather-box">
+                        <div class="weather-temp">☀ -5°C</div>
+                        <div class="weather-desc">
+                            <div>空气优</div>
+                            <div>西北风 3级</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: Calendar -->
+        <div id="page-calendar" class="page">
+            <div class="cal-container">
+                <div class="cal-header">
+                    <div class="cal-title">2026年 1月</div>
+                    <div class="cal-info-right">
+                        <span>温度 -5°C / 湿度 45%</span>
+                        <div class="battery-group">
+                            <div class="battery-icon">
+                                <div class="battery-level" style="width: 85%;"></div>
+                            </div>
+                            <span>85%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="cal-grid" id="cal-grid"></div>
+            </div>
+        </div>
+
+        <!-- Page 3: Clock -->
+        <div id="page-clock" class="page">
+            <!-- Top Right Status -->
+            <div class="clock-status-top">
+                <span>温度 24°C / 湿度 45%</span>
+                <div class="battery-group">
+                    <div class="battery-icon">
+                        <div class="battery-level" style="width: 85%;"></div>
+                    </div>
+                    <span>85%</span>
+                </div>
+            </div>
+
+            <div class="clock-rim" id="clock-rim">
+                <!-- Hands Only -->
+                <div class="center-cap"></div>
+                <div class="hand h" id="hand-h"></div>
+                <div class="hand m" id="hand-m"></div>
+            </div>
+
+            <!-- Right Panel Info -->
+            <div class="clock-panel">
+                <div class="clock-date" id="clock-date">2026年 1月 3日</div>
+                <div class="clock-week" id="clock-week">星期六</div>
+            </div>
+        </div>
+
+        <!-- Page 4: Gallery -->
+        <div id="page-gallery" class="page">
+            <img id="gallery-img" src="https://placehold.co/800x480/333/fff?text=Art+Frame" alt="Gallery">
+        </div>
+    </div>
+
+    <div id="controls">
+        <button onclick="switchPage(0)">1. 黄历</button>
+        <button onclick="switchPage(1)">2. 月历</button>
+        <button onclick="switchPage(2)">3. 时钟</button>
+        <button onclick="switchPage(3)">4. 画框</button>
+    </div>
+
+    <div id="font-selector"
+        style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; z-index: 400; display: flex; flex-direction: column; gap: 5px;">
+        <div style="color: white; font-size: 12px; margin-bottom: 5px;">Select Font Style:</div>
+        <button onclick="setFont('modern')">1. Modern Sans (黑体)</button>
+        <button onclick="setFont('serif')">2. Classic Serif (宋体)</button>
+        <button onclick="setFont('art')">3. Traditional (楷体)</button>
+        <button onclick="setFont('retro')">4. Retro Pixel (等宽)</button>
+    </div>
+
+    <script>
+        // --- Font Switching ---
+        function setFont(style) {
+            const root = document.documentElement;
+            if (style === 'modern') {
+                root.style.setProperty('--font-art', '"Microsoft YaHei", "PingFang SC", sans-serif');
+                root.style.setProperty('--font-num', '"Arial", sans-serif');
+            } else if (style === 'serif') {
+                root.style.setProperty('--font-art', '"SimSun", "Songti SC", serif');
+                root.style.setProperty('--font-num', '"Georgia", serif');
+            } else if (style === 'art') {
+                root.style.setProperty('--font-art', '"KaiTi", "STKaiti", serif');
+                root.style.setProperty('--font-num', '"Times New Roman", serif');
+            } else if (style === 'retro') {
+                root.style.setProperty('--font-art', '"Courier New", monospace');
+                root.style.setProperty('--font-num', '"Courier New", monospace');
+            }
+        }
+
+        // Default to Modern
+        setFont('modern');
+
+        // --- Navigation ---
+        const pages = document.querySelectorAll('.page');
+        let currentPage = 0;
+
+        function switchPage(index) {
+            pages.forEach((p, i) => {
+                if (i === index) p.classList.add('active');
+                else p.classList.remove('active');
+            });
+            currentPage = index;
+            if (index === 2) updateClock();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') switchPage(0);
+            if (e.key === '2') switchPage(1);
+            if (e.key === '3') switchPage(2);
+            if (e.key === '4') switchPage(3);
+            if (e.key === 'ArrowRight') switchPage((currentPage + 1) % 4);
+            if (e.key === 'ArrowLeft') switchPage((currentPage - 1 + 4) % 4);
+        });
+
+        // --- Calendar Logic ---
+        function getLunarDay(d) {
+            const map = ['初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
+                '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
+                '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'];
+            if (d >= 1 && d <= 30) return map[d - 1];
+            return '';
+        }
+
+        function generateCalendar() {
+            const grid = document.getElementById('cal-grid');
+            grid.innerHTML = ''; // Clear existing
+            const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
+
+            weekDays.forEach(d => {
+                const el = document.createElement('div');
+                el.className = 'cal-head';
+                el.innerText = d;
+                grid.appendChild(el);
+            });
+
+            // Mock Data Jan 2026
+            // Jan 1 is Thu.
+            // Mon Start: Mon(29), Tue(30), Wed(31), Thu(1)...
+            const prevDays = 3; // Mon, Tue, Wed
+            for (let i = 0; i < prevDays; i++) {
+                const el = document.createElement('div');
+                el.className = 'cal-cell';
+                el.style.opacity = '0.3';
+                el.innerHTML = `<div class="cell-solar">${29 + i}</div><div class="cell-lunar">腊月</div>`;
+                grid.appendChild(el);
+            }
+
+            // Start from Lunar 13 (approx for Jan 1 2026)
+            let lunarDay = 13;
+
+            for (let i = 1; i <= 31; i++) {
+                const el = document.createElement('div');
+                el.className = 'cal-cell';
+                const dayOfWeek = (i + 2) % 7; // 0=Mon
+
+                // Status Logic
+                let status = 0; // Work
+                if (dayOfWeek >= 5) status = 1; // Weekend -> Rest
+                if (i === 1) status = 2; // Holiday
+
+                if (i === 3) el.classList.add('today');
+
+                let statusHtml = '';
+                if (status === 1) statusHtml = '<div class="status-text st-rest">休</div>';
+                if (status === 2) statusHtml = '<div class="status-text st-holiday">假</div>';
+                if (status === 3) statusHtml = '<div class="status-text st-makeup">班</div>';
+
+                // Lunar Text
+                let lunarText = getLunarDay(lunarDay);
+                if (lunarDay === 1) lunarText = '正月'; // Simplified logic
+
+                el.innerHTML = `
+                    <div class="cell-solar">${i}</div>
+                    <div class="cell-lunar">${lunarText}</div>
+                    ${statusHtml}
+                `;
+                grid.appendChild(el);
+
+                lunarDay++;
+                if (lunarDay > 30) lunarDay = 1;
+            }
+
+            // Fill remaining
+            const used = prevDays + 31;
+            const total = 42; // 6 rows * 7
+            let nextLunar = lunarDay;
+            for (let i = 1; i <= total - used; i++) {
+                const el = document.createElement('div');
+                el.className = 'cal-cell';
+                el.style.opacity = '0.3';
+                let lText = getLunarDay(nextLunar);
+                if (nextLunar === 1) lText = '二月';
+                el.innerHTML = `<div class="cell-solar">${i}</div><div class="cell-lunar">${lText}</div>`;
+                grid.appendChild(el);
+                nextLunar++;
+            }
+        }
+        generateCalendar();
+
+        // --- Clock Logic ---
+        function initClock() {
+            const rim = document.getElementById('clock-rim');
+            // Reset to just hands
+            rim.innerHTML = `
+                <div class="center-cap"></div>
+                <div class="hand h" id="hand-h"></div>
+                <div class="hand m" id="hand-m"></div>
+            `;
+
+            const radius = 170; // 380/2 = 190. Border 10. Inner ~180. Ticks at 170.
+
+            // Ticks
+            for (let i = 0; i < 60; i++) {
+                const tick = document.createElement('div');
+                tick.className = 'clock-tick';
+                const isHour = (i % 5 === 0);
+                tick.classList.add(isHour ? 'tick-hour' : 'tick-min');
+
+                tick.style.transform = `rotate(${i * 6}deg) translateY(-${radius}px)`;
+                rim.appendChild(tick);
+            }
+
+            // Numbers
+            const numRadius = 140;
+            for (let i = 1; i <= 12; i++) {
+                const num = document.createElement('div');
+                num.className = 'clock-num';
+                num.innerText = i;
+                const angleRad = (i * 30 - 90) * (Math.PI / 180);
+                const x = numRadius * Math.cos(angleRad);
+                const y = numRadius * Math.sin(angleRad);
+                num.style.transform = `translate(${x}px, ${y}px)`;
+                rim.appendChild(num);
+            }
+        }
+        initClock();
+
+        function updateClock() {
+            const now = new Date();
+            let m = now.getMinutes();
+            m = m - (m % 5);
+            const h = now.getHours();
+            const hDeg = (h % 12) * 30 + (m / 60) * 30;
+            const mDeg = m * 6;
+
+            const handH = document.getElementById('hand-h');
+            const handM = document.getElementById('hand-m');
+            if (handH) handH.style.transform = `rotate(${hDeg}deg)`;
+            if (handM) handM.style.transform = `rotate(${mDeg}deg)`;
+
+            // Update Info
+            const dateEl = document.getElementById('clock-date');
+            const weekEl = document.getElementById('clock-week');
+
+            if (dateEl) {
+                const y = now.getFullYear();
+                const mo = now.getMonth() + 1;
+                const d = now.getDate();
+                dateEl.innerText = `${y}年 ${mo}月 ${d}日`;
+            }
+            if (weekEl) {
+                const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                weekEl.innerText = days[now.getDay()];
+            }
+        }
+        updateClock();
+        setInterval(updateClock, 60000);
+
+    </script>
+</body>
+
+</html>
