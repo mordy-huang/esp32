@@ -179,7 +179,7 @@
 
         .lunar-row {
             border-bottom: 2px solid var(--c-black);
-            padding-bottom: 10px;
+            padding-bottom: 5px;
             margin-bottom: 10px;
         }
 
@@ -196,28 +196,36 @@
 
         .info-grid {
             display: grid;
+            padding-top: 10px;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
+            row-gap: 25px; /* 增加行间距，让左右布局更透气 */
         }
 
+        /* 🔴 核心修改区域：把原来的 column 改成 row */
         .info-item {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;  /* 改为水平排列 */
+            align-items: baseline; /* 文字底部对齐 */
+            gap: 8px; /* 标签和内容之间的间距 */
         }
 
         .info-label {
-            font-size: var(--fs-md);
-            color: var(--c-gray);
+            font-size: var(--fs-lg);
+            color: var(--c-black);
             font-weight: bold;
+            min-width: 0px; /* 给标签一个最小宽度，保证对齐 */
+            text-align-last: justify; /* (可选) 让两个字的标签两端对齐 */
         }
 
         .info-value {
             font-size: var(--fs-lg);
             font-weight: bold;
         }
+        /* 🔴 修改结束 */
 
         .yi-ji-section {
-            margin-top: 10px;
+            margin-top: 50px;
         }
 
         .yi-ji-row {
@@ -225,32 +233,26 @@
             gap: 12px;
             margin-bottom: 10px;
             align-items: center;
-            /* Center vertically */
         }
 
         .yj-badge {
             width: 32px;
-            /* Reduced size */
             height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            /* Reduced text size */
             font-weight: bold;
-            /* Bold text */
             flex-shrink: 0;
             font-family: var(--font-art);
         }
 
-        /* Yi: Yellow Background, Black Text */
         .bg-yi {
             background-color: var(--c-yellow);
             color: var(--c-black);
         }
 
-        /* Ji: Red Background, White Text */
         .bg-ji {
             background-color: var(--c-red);
             color: var(--c-white);
@@ -262,7 +264,6 @@
         }
 
         .weather-box {
-            border: 2px solid var(--c-black);
             padding: 10px;
             display: flex;
             justify-content: space-between;
@@ -363,7 +364,6 @@
             line-height: 1;
         }
 
-        /* Status Text (Small Badge) */
         .status-text {
             position: absolute;
             top: 2px;
@@ -391,7 +391,6 @@
         }
 
         /* --- Page 3: Clock --- */
-        /* IMPORTANT: Use .active to override default display:none */
         #page-clock.active {
             display: flex;
             flex-direction: row;
@@ -483,7 +482,6 @@
             border: 3px solid var(--c-white);
         }
 
-        /* Right Panel Info */
         .clock-panel {
             display: flex;
             flex-direction: column;
@@ -495,7 +493,6 @@
             color: var(--c-black);
         }
 
-        /* Status Top Right for Clock Page */
         .clock-status-top {
             position: absolute;
             top: 20px;
@@ -568,10 +565,9 @@
 <body>
 
     <div id="app">
-        <!-- Page 1: Almanac -->
         <div id="page-almanac" class="page active">
             <div class="status-bar">
-                <div>ESP32 Calendar</div>
+                <div></div>
                 <div class="status-right">
                     <span>温度 24.5°C / 湿度 45%</span>
                     <div class="battery-group">
@@ -638,7 +634,6 @@
             </div>
         </div>
 
-        <!-- Page 2: Calendar -->
         <div id="page-calendar" class="page">
             <div class="cal-container">
                 <div class="cal-header">
@@ -657,9 +652,7 @@
             </div>
         </div>
 
-        <!-- Page 3: Clock -->
         <div id="page-clock" class="page">
-            <!-- Top Right Status -->
             <div class="clock-status-top">
                 <span>温度 24°C / 湿度 45%</span>
                 <div class="battery-group">
@@ -671,39 +664,20 @@
             </div>
 
             <div class="clock-rim" id="clock-rim">
-                <!-- Hands Only -->
                 <div class="center-cap"></div>
                 <div class="hand h" id="hand-h"></div>
                 <div class="hand m" id="hand-m"></div>
             </div>
 
-            <!-- Right Panel Info -->
             <div class="clock-panel">
                 <div class="clock-date" id="clock-date">2026年 1月 3日</div>
                 <div class="clock-week" id="clock-week">星期六</div>
             </div>
         </div>
 
-        <!-- Page 4: Gallery -->
         <div id="page-gallery" class="page">
             <img id="gallery-img" src="https://placehold.co/800x480/333/fff?text=Art+Frame" alt="Gallery">
         </div>
-    </div>
-
-    <div id="controls">
-        <button onclick="switchPage(0)">1. 黄历</button>
-        <button onclick="switchPage(1)">2. 月历</button>
-        <button onclick="switchPage(2)">3. 时钟</button>
-        <button onclick="switchPage(3)">4. 画框</button>
-    </div>
-
-    <div id="font-selector"
-        style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; z-index: 400; display: flex; flex-direction: column; gap: 5px;">
-        <div style="color: white; font-size: 12px; margin-bottom: 5px;">Select Font Style:</div>
-        <button onclick="setFont('modern')">1. Modern Sans (黑体)</button>
-        <button onclick="setFont('serif')">2. Classic Serif (宋体)</button>
-        <button onclick="setFont('art')">3. Traditional (楷体)</button>
-        <button onclick="setFont('retro')">4. Retro Pixel (等宽)</button>
     </div>
 
     <script>
@@ -755,156 +729,4 @@
             const map = ['初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
                 '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
                 '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'];
-            if (d >= 1 && d <= 30) return map[d - 1];
-            return '';
-        }
-
-        function generateCalendar() {
-            const grid = document.getElementById('cal-grid');
-            grid.innerHTML = ''; // Clear existing
-            const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
-
-            weekDays.forEach(d => {
-                const el = document.createElement('div');
-                el.className = 'cal-head';
-                el.innerText = d;
-                grid.appendChild(el);
-            });
-
-            // Mock Data Jan 2026
-            // Jan 1 is Thu.
-            // Mon Start: Mon(29), Tue(30), Wed(31), Thu(1)...
-            const prevDays = 3; // Mon, Tue, Wed
-            for (let i = 0; i < prevDays; i++) {
-                const el = document.createElement('div');
-                el.className = 'cal-cell';
-                el.style.opacity = '0.3';
-                el.innerHTML = `<div class="cell-solar">${29 + i}</div><div class="cell-lunar">腊月</div>`;
-                grid.appendChild(el);
-            }
-
-            // Start from Lunar 13 (approx for Jan 1 2026)
-            let lunarDay = 13;
-
-            for (let i = 1; i <= 31; i++) {
-                const el = document.createElement('div');
-                el.className = 'cal-cell';
-                const dayOfWeek = (i + 2) % 7; // 0=Mon
-
-                // Status Logic
-                let status = 0; // Work
-                if (dayOfWeek >= 5) status = 1; // Weekend -> Rest
-                if (i === 1) status = 2; // Holiday
-
-                if (i === 3) el.classList.add('today');
-
-                let statusHtml = '';
-                if (status === 1) statusHtml = '<div class="status-text st-rest">休</div>';
-                if (status === 2) statusHtml = '<div class="status-text st-holiday">假</div>';
-                if (status === 3) statusHtml = '<div class="status-text st-makeup">班</div>';
-
-                // Lunar Text
-                let lunarText = getLunarDay(lunarDay);
-                if (lunarDay === 1) lunarText = '正月'; // Simplified logic
-
-                el.innerHTML = `
-                    <div class="cell-solar">${i}</div>
-                    <div class="cell-lunar">${lunarText}</div>
-                    ${statusHtml}
-                `;
-                grid.appendChild(el);
-
-                lunarDay++;
-                if (lunarDay > 30) lunarDay = 1;
-            }
-
-            // Fill remaining
-            const used = prevDays + 31;
-            const total = 42; // 6 rows * 7
-            let nextLunar = lunarDay;
-            for (let i = 1; i <= total - used; i++) {
-                const el = document.createElement('div');
-                el.className = 'cal-cell';
-                el.style.opacity = '0.3';
-                let lText = getLunarDay(nextLunar);
-                if (nextLunar === 1) lText = '二月';
-                el.innerHTML = `<div class="cell-solar">${i}</div><div class="cell-lunar">${lText}</div>`;
-                grid.appendChild(el);
-                nextLunar++;
-            }
-        }
-        generateCalendar();
-
-        // --- Clock Logic ---
-        function initClock() {
-            const rim = document.getElementById('clock-rim');
-            // Reset to just hands
-            rim.innerHTML = `
-                <div class="center-cap"></div>
-                <div class="hand h" id="hand-h"></div>
-                <div class="hand m" id="hand-m"></div>
-            `;
-
-            const radius = 170; // 380/2 = 190. Border 10. Inner ~180. Ticks at 170.
-
-            // Ticks
-            for (let i = 0; i < 60; i++) {
-                const tick = document.createElement('div');
-                tick.className = 'clock-tick';
-                const isHour = (i % 5 === 0);
-                tick.classList.add(isHour ? 'tick-hour' : 'tick-min');
-
-                tick.style.transform = `rotate(${i * 6}deg) translateY(-${radius}px)`;
-                rim.appendChild(tick);
-            }
-
-            // Numbers
-            const numRadius = 140;
-            for (let i = 1; i <= 12; i++) {
-                const num = document.createElement('div');
-                num.className = 'clock-num';
-                num.innerText = i;
-                const angleRad = (i * 30 - 90) * (Math.PI / 180);
-                const x = numRadius * Math.cos(angleRad);
-                const y = numRadius * Math.sin(angleRad);
-                num.style.transform = `translate(${x}px, ${y}px)`;
-                rim.appendChild(num);
-            }
-        }
-        initClock();
-
-        function updateClock() {
-            const now = new Date();
-            let m = now.getMinutes();
-            m = m - (m % 5);
-            const h = now.getHours();
-            const hDeg = (h % 12) * 30 + (m / 60) * 30;
-            const mDeg = m * 6;
-
-            const handH = document.getElementById('hand-h');
-            const handM = document.getElementById('hand-m');
-            if (handH) handH.style.transform = `rotate(${hDeg}deg)`;
-            if (handM) handM.style.transform = `rotate(${mDeg}deg)`;
-
-            // Update Info
-            const dateEl = document.getElementById('clock-date');
-            const weekEl = document.getElementById('clock-week');
-
-            if (dateEl) {
-                const y = now.getFullYear();
-                const mo = now.getMonth() + 1;
-                const d = now.getDate();
-                dateEl.innerText = `${y}年 ${mo}月 ${d}日`;
-            }
-            if (weekEl) {
-                const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-                weekEl.innerText = days[now.getDay()];
-            }
-        }
-        updateClock();
-        setInterval(updateClock, 60000);
-
-    </script>
-</body>
-
-</html>
+            if (d >= 1 && d <= 30) return map[d -

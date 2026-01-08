@@ -10,10 +10,15 @@
 #include "Display_EPD_W21.h"
 
 // 继承 Adafru#define EPD_WHITE   0  // 00 -> 白色
-#define EPD_WHITE   0  // 00 -> 白色
-#define EPD_YELLOW  1  // 01 -> 黄色
-#define EPD_RED     2  // 10 -> 红色
-#define EPD_BLACK   3  // 11 -> 黑色
+#define EPD_WHITE        0  // 00 -> 白色
+#define EPD_YELLOW       1  // 01 -> 黄色
+#define EPD_RED          2  // 10 -> 红色
+#define EPD_BLACK        3  // 11 -> 黑色
+#define EPD_GRAY         4  // 11 -> 灰色
+#define EPD_ORANGE       5  // 11 -> 橙色
+#define EPD_PICK         6  // 11 -> 粉色
+#define EPD_DARK_YELLOW  7  // 11 -> 暗黄
+#define EPD_DARK_RED     8  // 11 -> 暗红
 class EPD_Driver : public Adafruit_GFX {
 public:
     // 构造函数：指定宽高

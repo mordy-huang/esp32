@@ -37,7 +37,71 @@ private:
             // ⚠️ 改动3：边界检查用 currentFont->w
             if (pixelX < x + currentFont->w)
             {
-              _drawPixel(pixelX, pixelY, color);
+              if (color == EPD_GRAY)
+              { // 假设 4 是 EPD_GRAY
+                // 检查坐标之和的奇偶性，形成网格纹理
+                if ((pixelX + pixelY) % 2 == 0)
+                {
+                  _drawPixel(pixelX, pixelY, EPD_BLACK); // 画黑点
+                }
+                else
+                {
+                  _drawPixel(pixelX, pixelY, EPD_WHITE); // 画白点
+                }
+              }
+              else if (color == EPD_ORANGE)
+              { // 5 代表橙色
+                // 🟠 橙色混色算法：红黄交替
+                if ((pixelX + pixelY) % 2 == 0)
+                {
+                  _drawPixel(pixelX, pixelY, EPD_RED); // 偶数点画红
+                }
+                else
+                {
+                  _drawPixel(pixelX, pixelY, EPD_YELLOW); // 奇数点画黄
+                }
+              }
+              else if (color == EPD_PICK)
+              { // 假设 6 代表粉色
+                // 🌸 粉色混色算法：红白交替
+                if ((pixelX + pixelY) % 2 == 0)
+                {
+                  _drawPixel(pixelX, pixelY, EPD_RED);
+                }
+                else
+                {
+                  _drawPixel(pixelX, pixelY, EPD_WHITE);
+                }
+              }
+              else if (color == EPD_DARK_YELLOW)
+              { // 7 代表暗黄
+                // 🔘 灰色混色算法：黑黄交替
+                if ((pixelX + pixelY) % 2 == 0)
+                {
+                  _drawPixel(pixelX, pixelY, EPD_BLACK);
+                }
+                else
+                {
+                  _drawPixel(pixelX, pixelY, EPD_YELLOW);
+                }
+              }
+              else if (color == EPD_DARK_RED)
+              { // 假设 8 代表暗红
+                // 🌸 粉色混色算法：红黑交替
+                if ((pixelX + pixelY) % 2 == 0)
+                {
+                  _drawPixel(pixelX, pixelY, EPD_RED);
+                }
+                else
+                {
+                  _drawPixel(pixelX, pixelY, EPD_BLACK);
+                }
+              }
+              else
+              {
+                // 正常颜色
+                _drawPixel(pixelX, pixelY, color);
+              }
             }
           }
         }

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全套高清墨水屏天气图标 (精致雪花版)</title>
+    <style>
+        body {
+            background-color: #f5f5f7;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+
+        h1 { color: #333; margin-bottom: 10px; font-weight: 300; }
+        p.subtitle { color: #666; margin-bottom: 40px; font-size: 0.9em; }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover { transform: translateY(-3px); }
+
+        canvas {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 10px;
+        }
+
+        .label { font-size: 13px; color: #555; font-weight: 600; text-align: center; }
+    </style>
+</head>
+
+<body>
+
+    <h1>E-Ink Weather Icons (Fancy Snow)</h1>
+    <p class="subtitle">更新：全新的精致六角枝状雪花</p>
+
+    <div class="gallery">
+        <div class="card"><canvas id="cSun" width="256" height="256"></canvas><span class="label">晴 (Day)</span></div>
+        <div class="card"><canvas id="cMoon" width="256" height="256"></canvas><span class="label">晴 (Night)</span></div>
+        <div class="card"><canvas id="cCloudySun" width="256" height="256"></canvas><span class="label">多云 (Day)</span></div>
+        <div class="card"><canvas id="cCloudyMoon" width="256" height="256"></canvas><span class="label">多云 (Night)</span></div>
+        <div class="card"><canvas id="cOvercast" width="256" height="256"></canvas><span class="label">阴天</span></div>
+
+        <div class="card"><canvas id="cRain" width="256" height="256"></canvas><span class="label">雨</span></div>
+        <div class="card"><canvas id="cSnow" width="256" height="256"></canvas><span class="label">雪 (新版)</span></div>
+        <div class="card"><canvas id="cSleet" width="256" height="256"></canvas><span class="label">雨夹雪 (新版)</span></div>
+        <div class="card"><canvas id="cStorm" width="256" height="256"></canvas><span class="label">雷暴</span></div>
+
+        <div class="card"><canvas id="cFog" width="256" height="256"></canvas><span class="label">雾/霾</span></div>
+        <div class="card"><canvas id="cWind" width="256" height="256"></canvas><span class="label">大风</span></div>
+        <div class="card"><canvas id="cSand" width="256" height="256"></canvas><span class="label">沙尘暴</span></div>
+    </div>
+
+    <script>
+        const C = { black: '#1a1a1a', white: '#ffffff', yellow: '#FFD700', red: '#E63946', lightGray: '#e0e0e0', gray: '#b0b0b0', darkGray: '#707070' };
+        const ctxConfig = { lineThick: 8 };
+
+        // ==========================================
+        // 基础绘图组件
+        // ==========================================
+        function drawModernCloud(ctx, x, y, scale, fillColor, strokeColor = C.black) {
+            ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+            ctx.beginPath();
+            ctx.moveTo(-40, 20);
+            ctx.bezierCurveTo(-55, 20, -65, 5, -65, -10);
+            ctx.bezierCurveTo(-65, -35, -45, -45, -30, -40);
+            ctx.bezierCurveTo(-20, -65, 20, -65, 35, -40);
+            ctx.bezierCurveTo(60, -45, 75, -25, 75, 0);
+            ctx.bezierCurveTo(75, 20, 60, 20, 50, 20);
+            ctx.lineTo(-40, 20); ctx.closePath();
+            ctx.fillStyle = fillColor; ctx.fill();
+            ctx.lineWidth = ctxConfig.lineThick; ctx.strokeStyle = strokeColor;
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawSun(ctx, x, y, radius) {
+            ctx.save(); ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fillStyle = C.yellow; ctx.fill();
+            ctx.strokeStyle = C.yellow; ctx.lineWidth = 6; ctx.lineCap = 'round';
+            for (let i = 0; i < 10; i++) {
+                const angle = (i * 360 / 10) * Math.PI / 180;
+                ctx.beginPath(); ctx.moveTo(x + Math.cos(angle) * (radius + 10), y + Math.sin(angle) * (radius + 10));
+                ctx.lineTo(x + Math.cos(angle) * (radius + 22), y + Math.sin(angle) * (radius + 22)); ctx.stroke();
+            } ctx.restore();
+        }
+
+        function drawMoon(ctx, x, y, radius) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(-30 * Math.PI / 180);
+            ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fillStyle = C.yellow; ctx.fill();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath(); ctx.arc(radius * 0.4, 0, radius * 0.85, 0, Math.PI * 2); ctx.fillStyle = "black"; ctx.fill();
+            ctx.globalCompositeOperation = 'source-over'; ctx.restore();
+            drawStar(ctx, x + radius + 10, y - radius, 4, C.yellow);
+            drawStar(ctx, x + radius - 10, y - radius + 20, 3, C.yellow);
+        }
+
+        function drawStar(ctx, x, y, r, color) {
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+        }
+
+        function drawFogLines(ctx, x, y, width) {
+            ctx.save(); ctx.translate(x, y); ctx.strokeStyle = C.gray; ctx.lineWidth = 10; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(-width / 2, -20); ctx.lineTo(width / 2 - 20, -20); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-width / 2 + 20, 0); ctx.lineTo(width / 2, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-width / 2 + 10, 20); ctx.lineTo(width / 2 - 10, 20); ctx.stroke(); ctx.restore();
+        }
+
+        function drawWindLines(ctx, x, y) {
+            ctx.save(); ctx.translate(x, y); ctx.strokeStyle = C.gray; ctx.lineWidth = 6; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(-50, -15); ctx.bezierCurveTo(-20, -15, 0, -25, 30, -10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-60, 10); ctx.bezierCurveTo(-10, 10, 10, 0, 50, 20); ctx.stroke();
+            ctx.translate(40, 0); ctx.rotate(45 * Math.PI / 180);
+            ctx.beginPath(); ctx.ellipse(0, 0, 12, 6, 0, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.restore();
+        }
+
+        function drawDrop(ctx, x, y, color) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(15 * Math.PI / 180);
+            ctx.beginPath(); ctx.roundRect(-4, -12, 8, 24, 4); ctx.fillStyle = color; ctx.fill(); ctx.restore();
+        }
+
+        function drawBolt(ctx, x, y) {
+            ctx.save(); ctx.translate(x, y); ctx.beginPath();
+            ctx.moveTo(5, -15); ctx.lineTo(-10, 5); ctx.lineTo(-2, 5); ctx.lineTo(-8, 25); ctx.lineTo(12, 0); ctx.lineTo(4, 0); ctx.lineTo(10, -15); ctx.closePath();
+            ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.black; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+        }
+
+        // ==========================================
+        // 【重要更新】全新的精致雪花绘制函数
+        // ==========================================
+        
+        // 辅助函数：绘制单个分支
+        function drawSnowBranch(ctx, len) {
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.lineTo(0, -len); // 主干
+            ctx.stroke();
+
+            // 绘制侧枝 (Fern-like structure)
+            // 在主干的 40%, 65%, 85% 处添加侧枝
+            const positions = [0.4, 0.65, 0.85]; 
+            
+            positions.forEach(pos => {
+                const y = -len * pos;
+                // 侧枝长度随位置变化，越往外越短
+                const subLen = len * 0.35 * (1 - pos * 0.6); 
+                
+                ctx.save();
+                ctx.translate(0, y);
+                // 左侧枝
+                ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-subLen, -subLen*0.8); ctx.stroke();
+                // 右侧枝
+                ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo( subLen, -subLen*0.8); ctx.stroke();
+                ctx.restore();
+            });
+        }
+
+        // 主函数：组合6个分支
+        function drawSnowFlake(ctx, x, y, size = 22) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.strokeStyle = C.black;
+            // 雪花线条稍微细一点，体现精致感
+            ctx.lineWidth = 2.5; 
+            ctx.lineCap = 'round'; 
+            ctx.lineJoin = 'round';
+
+            // 循环6次绘制六角形
+            for (let i = 0; i < 6; i++) {
+                drawSnowBranch(ctx, size);
+                ctx.rotate(Math.PI / 3); // 旋转 60 度
+            }
+            
+            // 可选：中心加个小红点点缀 (墨水屏特色)
+            // ctx.beginPath(); ctx.arc(0,0,2.5,0,Math.PI*2); ctx.fillStyle=C.red; ctx.fill();
+            
+            ctx.restore();
+        }
+
+
+        // ==========================================
+        // 渲染逻辑
+        // ==========================================
+        function render(id, drawFn) {
+            const cvs = document.getElementById(id);
+            const ctx = cvs.getContext('2d');
+            ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+            drawFn(ctx, cvs.width / 2, cvs.height / 2);
+        }
+
+        // 基础天气
+        render('cSun', (ctx, cx, cy) => drawSun(ctx, cx, cy, 50));
+        render('cMoon', (ctx, cx, cy) => drawMoon(ctx, cx, cy, 50));
+        render('cCloudySun', (ctx, cx, cy) => { drawSun(ctx, cx - 25, cy - 25, 40); drawModernCloud(ctx, cx + 10, cy + 20, 1.0, C.lightGray); });
+        render('cCloudyMoon', (ctx, cx, cy) => { drawMoon(ctx, cx - 20, cy - 25, 45); drawModernCloud(ctx, cx + 15, cy + 25, 1.0, C.gray, C.black); });
+        render('cOvercast', (ctx, cx, cy) => { drawModernCloud(ctx, cx - 30, cy - 20, 0.9, C.darkGray); drawModernCloud(ctx, cx + 10, cy + 15, 1.0, C.gray); });
+
+        // 降水 (使用新雪花)
+        render('cRain', (ctx, cx, cy) => { drawDrop(ctx, cx - 20, cy + 45, C.black); drawDrop(ctx, cx + 0, cy + 55, C.black); drawDrop(ctx, cx + 20, cy + 45, C.black); drawModernCloud(ctx, cx, cy - 5, 1.0, C.gray); });
+        
+        // 【更新】雪天：使用大尺寸的精致雪花
+        render('cSnow', (ctx, cx, cy) => {
+            drawSnowFlake(ctx, cx - 28, cy + 50, 24); // 左下大雪花
+            drawSnowFlake(ctx, cx + 32, cy + 45, 18); // 右下小雪花
+            drawModernCloud(ctx, cx, cy - 10, 1.0, C.lightGray);
+        });
+
+        // 【更新】雨夹雪：精致雪花 + 雨滴
+        render('cSleet', (ctx, cx, cy) => {
+            drawDrop(ctx, cx - 18, cy + 50, C.black); // 左雨
+            drawSnowFlake(ctx, cx + 22, cy + 50, 20); // 右雪
+            drawModernCloud(ctx, cx, cy - 5, 1.0, C.gray);
+        });
+
+        // 特殊天气
+        render('cStorm', (ctx, cx, cy) => { ctx.save(); ctx.scale(0.8, 0.8); drawBolt(ctx, (cx - 25) / 0.8, (cy + 35) / 0.8); ctx.restore(); drawBolt(ctx, cx + 15, cy + 45); drawModernCloud(ctx, cx, cy - 5, 1.0, C.darkGray); });
+        render('cFog', (ctx, cx, cy) => { drawFogLines(ctx, cx, cy + 10, 100); drawModernCloud(ctx, cx, cy - 25, 0.8, C.lightGray, C.gray); });
+        render('cWind', (ctx, cx, cy) => { drawWindLines(ctx, cx, cy); drawModernCloud(ctx, cx - 20, cy - 20, 0.8, C.white, C.gray); });
+        render('cSand', (ctx, cx, cy) => { ctx.strokeStyle = C.yellow; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(cx - 50, cy + 20); ctx.lineTo(cx + 50, cy + 20); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx - 40, cy + 40); ctx.lineTo(cx + 40, cy + 40); ctx.stroke(); drawModernCloud(ctx, cx, cy - 10, 1.0, C.yellow, C.black); ctx.fillStyle = C.red; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(cx - 30 + i * 15, cy + 30 + (i % 2) * 5, 2, 0, Math.PI * 2); ctx.fill(); } });
+
+    </script>
+</body>
+</html>

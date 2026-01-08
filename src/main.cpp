@@ -2,6 +2,7 @@
 #include "RGB_LED/RGBLight.h"     // 引入 LED 模块
 #include "Calendar/CalendarApp.h" // 引入日历模块
 #include <config.h>
+#include <TempertureAndAirPressure/TempertureAndAirPressure.h>
 
 
 // ================= 配置 =================
@@ -37,6 +38,8 @@ void setup()
   // }
   // 2. 初始化模块
   led.begin();
+  // 1. 初始化传感器
+  initSensors();
   calendar.begin(); // 这里面会初始化 SPI 和 屏幕引脚
 
   // 3. 开机先立即运行一次，不要傻等1分钟
